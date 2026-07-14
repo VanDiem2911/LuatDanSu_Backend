@@ -5,6 +5,7 @@ import { AuthService } from "@/application/services/AuthService";
 import { MediaModel } from "@/domain/models";
 import { connectDatabase } from "@/infrastructure/database/connection";
 import { fail, ok } from "@/shared/api";
+import { applyCors } from "@/shared/cors";
 
 export const config = {
   api: {
@@ -49,9 +50,7 @@ function uploadToCloudinary(file: { buffer: Buffer }, uploadPreset: string) {
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    res.setHeader("Access-Control-Allow-Origin", process.env.CORS_ORIGIN ?? "*");
-    res.setHeader("Access-Control-Allow-Methods", "POST,OPTIONS");
-    res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    applyCors(req, res, "POST,OPTIONS");
     if (req.method === "OPTIONS") {
       res.status(204).end();
       return;

@@ -1,10 +1,9 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { apiRouter } from "@/interfaces/api/routes/router";
+import { applyCors } from "@/shared/cors";
 
 export default function handler(req: NextApiRequest, res: NextApiResponse) {
-  res.setHeader("Access-Control-Allow-Origin", process.env.CORS_ORIGIN ?? "*");
-  res.setHeader("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+  applyCors(req, res, "GET,POST,PUT,DELETE,OPTIONS");
 
   if (req.method === "OPTIONS") {
     return res.status(204).end();
