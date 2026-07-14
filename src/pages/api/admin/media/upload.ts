@@ -1,8 +1,6 @@
-import fs from "node:fs";
-import path from "node:path";
 import type { NextApiRequest, NextApiResponse } from "next";
 import multer from "multer";
-import { v2 as cloudinary } from "cloudinary";
+import { type UploadApiResponse, v2 as cloudinary } from "cloudinary";
 import { AuthService } from "@/application/services/AuthService";
 import { MediaModel } from "@/domain/models";
 import { connectDatabase } from "@/infrastructure/database/connection";
@@ -14,17 +12,8 @@ export const config = {
   }
 };
 
-const uploadRoot = path.join(process.cwd(), "uploads");
-fs.mkdirSync(uploadRoot, { recursive: true });
-
 const upload = multer({
-  storage: multer.diskStorage({
-    destination: uploadRoot,
-    filename: (_req, file, callback) => {
-      const safeName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, "-");
-      callback(null, `${Date.now()}-${safeName}`);
-    }
-  }),
+  storage: (multer as unknown as { memoryStorage: () => ReturnType<typeof multer.diskStorage> }).memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, callback) => {
     callback(null, file.mimetype.startsWith("image/"));
@@ -37,6 +26,24 @@ function runMulter(req: NextApiRequest, res: NextApiResponse) {
       if (error) reject(error);
       else resolve();
     });
+  });
+}
+
+function uploadToCloudinary(file: { buffer: Buffer }, uploadPreset: string) {
+  return new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cloudinary.uploader.unsigned_upload_stream(
+      uploadPreset,
+      { folder: process.env.CLOUDINARY_FOLDER ?? "luatdansu" },
+      (error, result) => {
+        if (error || !result) {
+          reject(error ?? new Error("Cloudinary upload failed"));
+          return;
+        }
+        resolve(result);
+      }
+    );
+
+    stream.end(file.buffer);
   });
 }
 
@@ -56,55 +63,34 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     new AuthService().verify(req.headers.authorization);
     await connectDatabase();
+
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
+    if (!cloudName || !uploadPreset) {
+      res.status(500).json({ error: "Cloudinary is not configured" });
+      return;
+    }
+
+    cloudinary.config({
+      cloud_name: cloudName,
+      secure: true
+    });
+
     await runMulter(req, res);
 
     const file = (req as NextApiRequest & {
-      file?: { filename: string; mimetype: string; size: number; path: string };
+      file?: { originalname: string; mimetype: string; size: number; buffer: Buffer };
     }).file;
     if (!file) {
       res.status(422).json({ error: "Image file is required" });
       return;
     }
 
-    let fileUrl = `/api/uploads/${file.filename}`;
-
-    const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
-    const uploadPreset = process.env.CLOUDINARY_UPLOAD_PRESET;
-
-    if (cloudName && uploadPreset) {
-      try {
-        cloudinary.config({
-          cloud_name: cloudName,
-          secure: true
-        });
-
-        const folder = process.env.CLOUDINARY_FOLDER ?? "luatdansu";
-        console.log(`[Cloudinary] Uploading to cloud: ${cloudName}, preset: ${uploadPreset}, folder: ${folder}`);
-
-        const uploadResult = await cloudinary.uploader.unsigned_upload(file.path, uploadPreset, {
-          folder
-        });
-
-        fileUrl = uploadResult.secure_url;
-        console.log(`[Cloudinary] Upload success: ${fileUrl}`);
-
-        try {
-          fs.unlinkSync(file.path);
-        } catch {
-          // ignore temp file cleanup error
-        }
-      } catch (cloudErr) {
-        console.error("[Cloudinary] Upload failed:", cloudErr);
-        // Fall back to local URL, don't crash
-        console.warn("[Cloudinary] Falling back to local file storage.");
-      }
-    } else {
-      console.warn("[Cloudinary] Config missing (CLOUDINARY_CLOUD_NAME or CLOUDINARY_UPLOAD_PRESET). Using local storage.");
-    }
+    const uploadResult = await uploadToCloudinary(file, uploadPreset);
 
     const media = await MediaModel.create({
-      filename: file.filename,
-      url: fileUrl,
+      filename: uploadResult.public_id || file.originalname,
+      url: uploadResult.secure_url,
       mimeType: file.mimetype,
       size: file.size,
       alt: (req as NextApiRequest & { body?: Record<string, string> }).body?.alt,

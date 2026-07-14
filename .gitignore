@@ -6,13 +6,10 @@ node_modules/
 out/
 standalone/
 
-# Environment variables - KHÔNG BAO GIỜ commit file này
+# Environment variables
 .env
 .env.local
 .env.production
-
-# Uploads (ảnh local tạm thời - dùng Cloudinary cho production)
-uploads/
 
 # Logs
 *.log
