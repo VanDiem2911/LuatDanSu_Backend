@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+standalone/
+
+# Environment variables - KHÔNG BAO GIỜ commit file này
+.env
+.env.local
+.env.production
+
+# Uploads (ảnh local tạm thời - dùng Cloudinary cho production)
+uploads/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# TypeScript
+*.tsbuildinfo
