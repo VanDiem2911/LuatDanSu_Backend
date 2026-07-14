@@ -68,8 +68,11 @@ async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?
       cms.list("settings", { isPublic: true, limit: 100 }, true)
     ]);
 
-    // Build header menu from categories (type=specialty hoặc isVisible=true)
-    const visibleCats = categories.items.filter((c: Record<string, unknown>) => c.isVisible !== false);
+    // Build header menu from categories, exclude special sections
+    const EXCLUDED_FROM_NAV = ["bieu-mau", "hoi-dap"];
+    const visibleCats = categories.items.filter(
+      (c: Record<string, unknown>) => c.isVisible !== false && !EXCLUDED_FROM_NAV.includes(String(c.slug ?? ""))
+    );
     const menuItems = visibleCats.map((cat: Record<string, unknown>, index: number) => ({
       label: cat.name,
       href: `/${cat.slug}`,
