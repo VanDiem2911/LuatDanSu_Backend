@@ -20,13 +20,14 @@ function requireAdmin(req: NextApiRequest) {
 
 export async function apiRouter(req: NextApiRequest, res: NextApiResponse) {
   try {
-    await connectDatabase();
     const path = getPath(req);
     const [scope, resource, id, action] = path;
 
     if (scope === "health") {
       return ok(res, { status: "ok", timestamp: new Date().toISOString() });
     }
+
+    await connectDatabase();
 
     if (scope === "auth" && resource === "login" && req.method === "POST") {
       return ok(res, await auth.login(req.body));

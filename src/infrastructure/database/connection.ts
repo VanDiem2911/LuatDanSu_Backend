@@ -11,11 +11,15 @@ export async function connectDatabase() {
 
   if (!connectionPromise) {
     connectionPromise = mongoose.connect(env.mongodbUri, {
-      autoIndex: process.env.NODE_ENV !== "production"
+      autoIndex: process.env.NODE_ENV !== "production",
+      serverSelectionTimeoutMS: 8_000
     });
   }
 
-  const connection = await connectionPromise;
+  const connection = await connectionPromise.catch((error) => {
+    connectionPromise = null;
+    throw error;
+  });
   logger.info({ database: mongoose.connection.name }, "MongoDB connected");
   return connection;
 }
