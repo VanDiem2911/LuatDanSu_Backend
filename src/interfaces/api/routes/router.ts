@@ -63,13 +63,22 @@ async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?
   }
 
   if (resource === "navigation") {
-    const [menus, categories, settings] = await Promise.all([
-      cms.list("menus", { limit: 20 }, true),
+    const [categories, settings] = await Promise.all([
       cms.list("categories", { limit: 50, sort: "order", order: "asc" }, true),
       cms.list("settings", { isPublic: true, limit: 100 }, true)
     ]);
+
+    // Build header menu from categories (type=specialty hoặc isVisible=true)
+    const visibleCats = categories.items.filter((c: Record<string, unknown>) => c.isVisible !== false);
+    const menuItems = visibleCats.map((cat: Record<string, unknown>, index: number) => ({
+      label: cat.name,
+      href: `/${cat.slug}`,
+      order: typeof cat.order === "number" ? cat.order : index,
+      isExternal: false
+    }));
+
     return ok(res, {
-      menus: menus.items,
+      menus: [{ location: "header", items: menuItems }],
       categories: categories.items,
       settings: settings.items
     });
