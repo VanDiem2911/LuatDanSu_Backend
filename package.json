@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev -p 3001",
     "build": "next build",
-    "start": "next start -p 3001",
+    "start": "node scripts/start.mjs",
+    "start:render": "node scripts/start.mjs",
     "seed": "tsx src/seed/run.ts",
     "crawl": "tsx src/seed/crawl.ts",
     "lint": "next lint"
