@@ -63,7 +63,8 @@ export class CmsService {
     }
 
     const repository = new BaseRepository(resource.model);
-    return repository.list(filter, options);
+    const projection = isPublic && ["articles", "pages"].includes(resourceName) ? { content: 0 } : undefined;
+    return repository.list(filter, options, projection);
   }
 
   async find(resourceName: ResourceName, idOrSlug: string, isPublic = false) {

@@ -4,12 +4,12 @@ import type { QueryOptions } from "@/shared/utils/pagination";
 export class BaseRepository<T> {
   constructor(private model: Model<T>) {}
 
-  async list(filter: FilterQuery<T>, options: QueryOptions) {
+  async list(filter: FilterQuery<T>, options: QueryOptions, projection?: any) {
     const skip = (options.page - 1) * options.limit;
     const sortDirection = options.order === "asc" ? 1 : -1;
     const [items, total] = await Promise.all([
       this.model
-        .find(filter)
+        .find(filter, projection)
         .sort({ [options.sort]: sortDirection })
         .skip(skip)
         .limit(options.limit)
