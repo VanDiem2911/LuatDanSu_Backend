@@ -2,7 +2,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
 import { CmsService } from "@/application/services/CmsService";
 import { AuthService } from "@/application/services/AuthService";
-import { isResourceName, type ResourceName } from "@/application/services/resourceConfig";
+import { isResourceName, type ResourceName, resources as resourceConfigs } from "@/application/services/resourceConfig";
 import { connectDatabase } from "@/infrastructure/database/connection";
 import { ApiError, fail, ok } from "@/shared/api";
 
@@ -39,6 +39,10 @@ export async function apiRouter(req: NextApiRequest, res: NextApiResponse) {
 
     if (scope === "admin") {
       requireAdmin(req);
+      if (resource === "backup" && req.method === "GET") {
+        await handleBackup(req, res);
+        return;
+      }
       return handleAdmin(req, res, resource, id, action);
     }
 
@@ -49,6 +53,11 @@ export async function apiRouter(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?: string, id?: string) {
+  if (req.method === "GET") {
+    const cacheTime = resource === "navigation" ? 300 : 60;
+    res.setHeader("Cache-Control", `public, max-age=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`);
+  }
+
   if (resource === "leads" && req.method === "POST") {
     return ok(res, await cms.create("leads", req.body), 201);
   }
@@ -105,6 +114,25 @@ async function handleAdmin(
   id?: string,
   action?: string
 ) {
+  if (resource === "dashboard" && req.method === "GET") {
+    const [articles, leads, comments, videos] = await Promise.all([
+      cms.list("articles", { limit: 1 }),
+      cms.list("leads", { limit: 5, sort: "createdAt", order: "desc" }),
+      cms.list("comments", { limit: 1 }),
+      cms.list("videos", { limit: 1 })
+    ]);
+
+    return ok(res, {
+      counts: {
+        articles: articles.total,
+        leads: leads.total,
+        comments: comments.total,
+        videos: videos.total
+      },
+      recentLeads: leads.items
+    });
+  }
+
   if (!resource || !isResourceName(resource)) throw new ApiError(404, "Admin resource not found");
   const resourceName = resource as ResourceName;
 
@@ -135,3 +163,19 @@ function publicMeta(result: { total: number; page: number; limit: number; totalP
     totalPages: result.totalPages
   };
 }
+
+async function handleBackup(req: NextApiRequest, res: NextApiResponse) {
+  const backupData: Record<string, unknown[]> = {};
+  
+  for (const [name, config] of Object.entries(resourceConfigs)) {
+    // Lấy tất cả tài liệu từ mỗi collection
+    const docs = await config.model.find({}).lean();
+    backupData[name] = docs as unknown[];
+  }
+  
+  const dateStr = new Date().toISOString().split("T")[0];
+  res.setHeader("Content-Disposition", `attachment; filename=luatdansu_backup_${dateStr}.json`);
+  res.setHeader("Content-Type", "application/json");
+  res.status(200).json(backupData);
+}
+
