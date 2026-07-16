@@ -54,7 +54,7 @@ export async function apiRouter(req: NextApiRequest, res: NextApiResponse) {
 
 async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?: string, id?: string) {
   if (req.method === "GET") {
-    const cacheTime = resource === "navigation" ? 300 : 60;
+    const cacheTime = resource === "navigation" ? 60 : 3;
     res.setHeader("Cache-Control", `public, max-age=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`);
   }
 

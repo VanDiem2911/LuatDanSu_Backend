@@ -40,7 +40,7 @@ const articleSchema = z.object({
   tagSlugs: z.array(z.string().regex(slugRegex)).default([]),
   image: optionalUrl,
   authorName: z.string().default("Ban Biên Tập"),
-  status: z.enum(["draft", "published", "archived"]).default("draft"),
+  status: z.enum(["draft", "published", "archived"]).default("published"),
   featured: z.boolean().default(false),
   views: z.number().optional(),
   publishedAt: z.coerce.date().optional(),
@@ -85,7 +85,7 @@ const pageSchema = z.object({
   slug: z.string().regex(slugRegex).optional(),
   excerpt: z.string().optional(),
   content: z.string().min(10),
-  status: z.enum(["draft", "published", "archived"]).default("draft"),
+  status: z.enum(["draft", "published", "archived"]).default("published"),
   seo: seoSchema
 });
 
