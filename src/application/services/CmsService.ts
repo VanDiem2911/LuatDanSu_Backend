@@ -57,8 +57,9 @@ export class CmsService {
     }
 
     if (options.search) {
+      const escapedSearch = options.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       filter.$or = resource.searchable.map((field) => ({
-        [field]: { $regex: options.search, $options: "i" }
+        [field]: { $regex: escapedSearch, $options: "i" }
       }));
     }
 

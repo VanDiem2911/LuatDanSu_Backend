@@ -147,11 +147,11 @@ const userSchema = z.object({
 });
 
 export const resources = {
-  articles: { model: ArticleModel, schema: articleSchema, searchable: ["title", "excerpt", "content"] },
+  articles: { model: ArticleModel, schema: articleSchema, searchable: ["title"] },
   categories: { model: CategoryModel, schema: categorySchema, searchable: ["name", "description"] },
   tags: { model: TagModel, schema: tagSchema, searchable: ["name", "description"] },
   menus: { model: MenuModel, schema: menuSchema, searchable: ["name"] },
-  pages: { model: PageModel, schema: pageSchema, searchable: ["title", "excerpt", "content"] },
+  pages: { model: PageModel, schema: pageSchema, searchable: ["title"] },
   settings: { model: SettingModel, schema: settingSchema, searchable: ["key", "group"] },
   media: { model: MediaModel, schema: mediaSchema, searchable: ["filename", "alt"] },
   banners: { model: BannerModel, schema: bannerSchema, searchable: ["title", "description"] },
