@@ -15,6 +15,7 @@ const articleSchema = new Schema(
     featured: { type: Boolean, default: false, index: true },
     views: { type: Number, default: 0 },
     publishedAt: { type: Date },
+    fileUrl: { type: String, trim: true },
     seo: seoSchema,
     ...auditFields
   },

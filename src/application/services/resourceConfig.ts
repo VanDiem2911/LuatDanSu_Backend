@@ -44,6 +44,7 @@ const articleSchema = z.object({
   featured: z.boolean().default(false),
   views: z.number().optional(),
   publishedAt: z.coerce.date().optional(),
+  fileUrl: z.string().optional(),
   seo: seoSchema
 });
 
