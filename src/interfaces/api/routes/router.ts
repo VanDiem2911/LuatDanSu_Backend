@@ -74,7 +74,8 @@ async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?
     const contentType = response.headers.get("content-type") || "application/octet-stream";
 
     res.setHeader("Content-Type", contentType);
-    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+    const safeFilename = encodeURIComponent(filename).replace(/['()]/g, escape).replace(/\*/g, '%2A');
+    res.setHeader("Content-Disposition", `attachment; filename="document.docx"; filename*=UTF-8''${safeFilename}`);
 
     const arrayBuffer = await response.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
