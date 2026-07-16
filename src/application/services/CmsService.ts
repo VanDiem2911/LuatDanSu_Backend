@@ -94,6 +94,11 @@ export class CmsService {
       throw new ApiError(405, "Create users through /api/admin/users/invite or seed script");
     }
 
+    if (resourceName === "videos") {
+      await resource.model.updateMany({}, { $inc: { order: 1 } });
+      (payload as any).order = 1;
+    }
+
     return new BaseRepository(resource.model).create(payload);
   }
 
