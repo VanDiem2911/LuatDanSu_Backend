@@ -58,6 +58,30 @@ async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?
     res.setHeader("Cache-Control", `public, max-age=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`);
   }
 
+  if (resource === "download" && req.method === "GET") {
+    const url = String(req.query.url ?? "");
+    const filename = String(req.query.filename ?? "document");
+
+    if (!url) {
+      throw new ApiError(400, "URL is required");
+    }
+
+    const response = await fetch(url);
+    if (!response.ok) {
+      throw new ApiError(500, "Failed to fetch file from remote source");
+    }
+
+    const contentType = response.headers.get("content-type") || "application/octet-stream";
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Content-Disposition", `attachment; filename="${encodeURIComponent(filename)}"`);
+
+    const arrayBuffer = await response.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    res.send(buffer);
+    return;
+  }
+
   if (resource === "leads" && req.method === "POST") {
     return ok(res, await cms.create("leads", req.body), 201);
   }

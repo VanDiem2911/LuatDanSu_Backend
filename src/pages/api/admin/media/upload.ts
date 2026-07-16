@@ -99,15 +99,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const uploadResult = await uploadToCloudinary(file, uploadPreset);
 
-    let secureUrl = uploadResult.secure_url;
-    if (!file.mimetype.startsWith("image/")) {
-      const parts = file.originalname.split(".");
-      const extension = parts.length > 1 ? parts.pop() : "";
-      if (extension && !secureUrl.toLowerCase().endsWith(`.${extension.toLowerCase()}`)) {
-        const safeName = encodeURIComponent(file.originalname);
-        secureUrl = `${secureUrl}/${safeName}`;
-      }
-    }
+    const secureUrl = !file.mimetype.startsWith("image/")
+      ? `${uploadResult.secure_url}?filename=${encodeURIComponent(file.originalname)}`
+      : uploadResult.secure_url;
 
     const media = await MediaModel.create({
       filename: uploadResult.public_id || file.originalname,
