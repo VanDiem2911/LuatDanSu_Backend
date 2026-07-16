@@ -67,12 +67,16 @@ export class CmsService {
     return repository.list(filter, options, projection);
   }
 
-  async find(resourceName: ResourceName, idOrSlug: string, isPublic = false) {
+  async find(resourceName: ResourceName, idOrSlug: string, isPublic = false, categorySlug?: string) {
     const resource = this.resource(resourceName);
     const repository = new BaseRepository(resource.model);
     const filter: FilterQuery<unknown> = idOrSlug.match(/^[0-9a-fA-F]{24}$/)
       ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] }
       : { slug: idOrSlug };
+
+    if (categorySlug && resourceName === "articles") {
+      filter.categorySlug = categorySlug;
+    }
 
     if (isPublic && ["articles", "pages"].includes(resourceName)) {
       filter.status = "published";

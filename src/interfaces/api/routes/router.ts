@@ -101,7 +101,7 @@ async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?
   const resourceName = resource as ResourceName;
 
   if (req.method !== "GET") throw new ApiError(405, "Method not allowed");
-  if (id) return ok(res, await cms.find(resourceName, id, true));
+  if (id) return ok(res, await cms.find(resourceName, id, true, req.query.categorySlug as string));
 
   const result = await cms.list(resourceName, req.query, true);
   return ok(res, { data: result.items, meta: publicMeta(result) });
@@ -143,7 +143,7 @@ async function handleAdmin(
   if (action) throw new ApiError(404, "Action not found");
 
   if (req.method === "GET") {
-    if (id) return ok(res, await cms.find(resourceName, id));
+    if (id) return ok(res, await cms.find(resourceName, id, false, req.query.categorySlug as string));
     const result = await cms.list(resourceName, req.query);
     return ok(res, { data: result.items, meta: publicMeta(result) });
   }

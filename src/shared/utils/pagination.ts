@@ -11,7 +11,8 @@ export function parseQueryOptions(query: Record<string, unknown>): QueryOptions 
   const limit = Math.min(Math.max(Number(query.limit ?? 12), 1), 10000);
   const sort = String(query.sort ?? "createdAt");
   const order = String(query.order ?? "desc") === "asc" ? "asc" : "desc";
-  const search = query.search ? String(query.search).trim() : undefined;
+  const searchVal = query.search || query.q;
+  const search = searchVal ? String(searchVal).trim() : undefined;
 
   return { page, limit, sort, order, search };
 }
