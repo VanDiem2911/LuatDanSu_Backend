@@ -17,7 +17,16 @@ const upload = multer({
   storage: (multer as unknown as { memoryStorage: () => ReturnType<typeof multer.diskStorage> }).memoryStorage(),
   limits: { fileSize: 10 * 1024 * 1024 },
   fileFilter: (_req, file, callback) => {
-    callback(null, file.mimetype.startsWith("image/"));
+    const allowedTypes = [
+      "application/pdf",
+      "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel"
+    ];
+    const isImage = file.mimetype.startsWith("image/");
+    const isAllowedDoc = allowedTypes.includes(file.mimetype);
+    callback(null, isImage || isAllowedDoc);
   }
 });
 
@@ -34,7 +43,10 @@ function uploadToCloudinary(file: { buffer: Buffer }, uploadPreset: string) {
   return new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cloudinary.uploader.unsigned_upload_stream(
       uploadPreset,
-      { folder: process.env.CLOUDINARY_FOLDER ?? "luatdansu" },
+      { 
+        folder: process.env.CLOUDINARY_FOLDER ?? "luatdansu",
+        resource_type: "auto"
+      },
       (error, result) => {
         if (error || !result) {
           reject(error ?? new Error("Cloudinary upload failed"));
@@ -81,7 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       file?: { originalname: string; mimetype: string; size: number; buffer: Buffer };
     }).file;
     if (!file) {
-      res.status(422).json({ error: "Image file is required" });
+      res.status(422).json({ error: "File không hợp lệ hoặc bị thiếu" });
       return;
     }
 
