@@ -53,6 +53,64 @@ export async function apiRouter(req: NextApiRequest, res: NextApiResponse) {
 }
 
 async function handlePublic(req: NextApiRequest, res: NextApiResponse, resource?: string, id?: string) {
+  if (resource === "sitemap" || resource === "sitemap.xml") {
+    const baseUrl = process.env.SITE_URL || "https://luatdansu.vercel.app";
+    const [categories, articles, pages] = await Promise.all([
+      cms.list("categories", { limit: 100 }, true),
+      cms.list("articles", { limit: 5000, sort: "updatedAt", order: "desc" }, true),
+      cms.list("pages", { limit: 100 }, true)
+    ]);
+
+    type SitemapItem = {
+      loc: string;
+      lastmod?: string;
+      changefreq: string;
+      priority: string;
+    };
+
+    const staticUrls: SitemapItem[] = [
+      { loc: `${baseUrl}/`, priority: "1.0", changefreq: "daily" },
+      { loc: `${baseUrl}/gioi-thieu`, priority: "0.5", changefreq: "monthly" },
+      { loc: `${baseUrl}/lien-he`, priority: "0.5", changefreq: "monthly" },
+      { loc: `${baseUrl}/dang-ky-tu-van`, priority: "0.5", changefreq: "monthly" }
+    ];
+
+    const categoryUrls: SitemapItem[] = categories.items.map((cat: Record<string, unknown>) => ({
+      loc: `${baseUrl}/${cat.slug}`,
+      priority: "0.8",
+      changefreq: "daily"
+    }));
+
+    const articleUrls: SitemapItem[] = articles.items.map((art: Record<string, unknown>) => ({
+      loc: `${baseUrl}/${art.categorySlug}/${art.slug || art._id}`,
+      lastmod: art.updatedAt ? new Date(String(art.updatedAt)).toISOString().split("T")[0] : undefined,
+      priority: "0.9",
+      changefreq: "weekly"
+    }));
+
+    const pageUrls: SitemapItem[] = pages.items.map((p: Record<string, unknown>) => ({
+      loc: `${baseUrl}/${p.slug}`,
+      priority: "0.6",
+      changefreq: "monthly"
+    }));
+
+    const allUrls: SitemapItem[] = [...staticUrls, ...categoryUrls, ...articleUrls, ...pageUrls];
+
+    const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+${allUrls
+  .map(
+    (item) =>
+      `  <url>\n    <loc>${item.loc}</loc>${item.lastmod ? `\n    <lastmod>${item.lastmod}</lastmod>` : ""}\n    <changefreq>${item.changefreq}</changefreq>\n    <priority>${item.priority}</priority>\n  </url>`
+  )
+  .join("\n")}
+</urlset>`;
+
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.status(200).send(xml);
+    return;
+  }
+
   if (req.method === "GET") {
     const cacheTime = resource === "navigation" ? 60 : 3;
     res.setHeader("Cache-Control", `public, max-age=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`);
