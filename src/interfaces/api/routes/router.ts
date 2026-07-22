@@ -111,9 +111,14 @@ ${allUrls
     return;
   }
 
-  if (req.method === "GET") {
-    const cacheTime = resource === "navigation" ? 60 : 3;
-    res.setHeader("Cache-Control", `public, max-age=${cacheTime}, stale-while-revalidate=${cacheTime * 2}`);
+  if (req.method === "GET" && resource !== "download") {
+    const browserCache = resource === "navigation" ? 300 : 60;
+    const edgeCache = resource === "navigation" ? 600 : 300;
+    res.setHeader(
+      "Cache-Control",
+      `public, max-age=${browserCache}, s-maxage=${edgeCache}, stale-while-revalidate=86400`
+    );
+    res.setHeader("CDN-Cache-Control", `public, s-maxage=${edgeCache}, stale-while-revalidate=86400`);
   }
 
   if (resource === "download" && req.method === "GET") {
@@ -177,6 +182,33 @@ ${allUrls
       menus: [{ location: "header", items: menuItems }],
       categories: categories.items,
       settings: settings.items
+    });
+  }
+
+  if (resource === "category-page") {
+    if (req.method !== "GET" || !id) throw new ApiError(404, "Category page not found");
+
+    const [category, featured] = await Promise.all([
+      cms.find("categories", id, true),
+      cms.list(
+        "articles",
+        { categorySlug: id, limit: 12, sort: "publishedAt", order: "desc" },
+        true
+      )
+    ]);
+
+    return ok(res, {
+      category,
+      featuredArticles: featured.items,
+      articles: {
+        data: featured.items.slice(0, 9),
+        meta: {
+          total: featured.total,
+          page: 1,
+          limit: 9,
+          totalPages: Math.ceil(featured.total / 9)
+        }
+      }
     });
   }
 
@@ -261,4 +293,3 @@ async function handleBackup(req: NextApiRequest, res: NextApiResponse) {
   res.setHeader("Content-Type", "application/json");
   res.status(200).json(backupData);
 }
-
