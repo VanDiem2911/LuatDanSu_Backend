@@ -105,3 +105,17 @@ export const BannerModel = mongoose.models.Banner || mongoose.model("Banner", ba
 export const CommentModel = mongoose.models.Comment || mongoose.model("Comment", commentSchema);
 export const LeadModel = mongoose.models.Lead || mongoose.model("Lead", leadSchema);
 export const VideoModel = mongoose.models.Video || mongoose.model("Video", videoSchema);
+
+const dailyAnalyticsSchema = new Schema(
+  {
+    date: { type: String, required: true, unique: true, index: true },
+    pageviews: { type: Number, default: 0 },
+    uniqueVisitors: { type: Number, default: 0 },
+    visitorHashes: { type: [String], default: [] }
+  },
+  { timestamps: true }
+);
+
+export const DailyAnalyticsModel =
+  mongoose.models.DailyAnalytics || mongoose.model("DailyAnalytics", dailyAnalyticsSchema);
+

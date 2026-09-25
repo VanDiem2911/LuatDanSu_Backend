@@ -2,6 +2,10 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { z } from "zod";
 import { CmsService } from "@/application/services/CmsService";
 import { AuthService } from "@/application/services/AuthService";
+import { EmailService } from "@/application/services/EmailService";
+import { AnalyticsService } from "@/application/services/AnalyticsService";
+import { SettingModel } from "@/domain/models/ContentModels";
+import { ArticleModel } from "@/domain/models/Article";
 import { isResourceName, type ResourceName, resources as resourceConfigs } from "@/application/services/resourceConfig";
 import { connectDatabase } from "@/infrastructure/database/connection";
 import { ApiError, fail, ok } from "@/shared/api";
@@ -147,11 +151,28 @@ ${allUrls
   }
 
   if (resource === "leads" && req.method === "POST") {
-    return ok(res, await cms.create("leads", req.body), 201);
+    const created = await cms.create("leads", req.body);
+    EmailService.sendNewLeadNotification(req.body).catch(() => {});
+    return ok(res, created, 201);
   }
 
   if (resource === "comments" && req.method === "POST") {
-    return ok(res, await cms.create("comments", req.body), 201);
+    const created = await cms.create("comments", req.body);
+    EmailService.sendNewQuestionNotification(req.body).catch(() => {});
+    return ok(res, created, 201);
+  }
+
+  if (resource === "track-visit" && req.method === "POST") {
+    const rawIp = (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "127.0.0.1";
+    const clientIp = rawIp.split(",")[0].trim();
+    const userAgent = (req.headers["user-agent"] as string) || "";
+    AnalyticsService.recordVisit({
+      path: req.body?.path,
+      articleSlug: req.body?.articleSlug,
+      clientIp,
+      userAgent
+    }).catch(() => {});
+    return ok(res, { tracked: true });
   }
 
   if (resource === "search") {
@@ -230,11 +251,12 @@ async function handleAdmin(
   action?: string
 ) {
   if (resource === "dashboard" && req.method === "GET") {
-    const [articles, leads, comments, videos] = await Promise.all([
+    const [articles, leads, comments, videos, analytics] = await Promise.all([
       cms.list("articles", { limit: 1 }),
-      cms.list("leads", { limit: 5, sort: "createdAt", order: "desc" }),
+      cms.list("leads", { limit: 10, sort: "createdAt", order: "desc" }),
       cms.list("comments", { limit: 1 }),
-      cms.list("videos", { limit: 1 })
+      cms.list("videos", { limit: 1 }),
+      AnalyticsService.getDashboardAnalytics()
     ]);
 
     return ok(res, {
@@ -242,8 +264,13 @@ async function handleAdmin(
         articles: articles.total,
         leads: leads.total,
         comments: comments.total,
-        videos: videos.total
+        videos: videos.total,
+        views: analytics?.thisWeekViews ?? 0,
+        weekGrowth: analytics?.weekGrowth ?? 0,
+        thisMonthViews: analytics?.thisMonthViews ?? 0,
+        totalAllTimeViews: analytics?.totalArticleViews ?? 0
       },
+      analytics,
       recentLeads: leads.items
     });
   }
@@ -255,12 +282,27 @@ async function handleAdmin(
     return ok(res, await cms.inviteUser(req.body), 201);
   }
 
+  if (resourceName === "settings" && id === "test-email" && req.method === "POST") {
+    const result = await EmailService.sendTestEmail(req.body.email);
+    return ok(res, result);
+  }
+
   if (action) throw new ApiError(404, "Action not found");
 
   if (req.method === "GET") {
     if (id) return ok(res, await cms.find(resourceName, id, false, req.query.categorySlug as string));
     const result = await cms.list(resourceName, req.query);
     return ok(res, { data: result.items, meta: publicMeta(result) });
+  }
+
+  if (resourceName === "settings" && req.method === "PUT" && id) {
+    const filter = id.match(/^[0-9a-fA-F]{24}$/) ? { _id: id } : { key: id };
+    const updated = await SettingModel.findOneAndUpdate(
+      filter,
+      { $set: req.body },
+      { new: true, upsert: true }
+    );
+    return ok(res, updated);
   }
 
   if (req.method === "POST") return ok(res, await cms.create(resourceName, req.body), 201);

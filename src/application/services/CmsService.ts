@@ -161,9 +161,16 @@ export class CmsService {
   async find(resourceName: ResourceName, idOrSlug: string, isPublic = false, categorySlug?: string) {
     const resource = this.resource(resourceName);
     const repository = new BaseRepository(resource.model);
-    const filter: FilterQuery<unknown> = idOrSlug.match(/^[0-9a-fA-F]{24}$/)
-      ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] }
-      : { slug: idOrSlug };
+    let filter: FilterQuery<unknown>;
+    if (resourceName === "settings") {
+      filter = idOrSlug.match(/^[0-9a-fA-F]{24}$/)
+        ? { $or: [{ _id: idOrSlug }, { key: idOrSlug }] }
+        : { key: idOrSlug };
+    } else {
+      filter = idOrSlug.match(/^[0-9a-fA-F]{24}$/)
+        ? { $or: [{ _id: idOrSlug }, { slug: idOrSlug }] }
+        : { slug: idOrSlug };
+    }
 
     if (categorySlug && resourceName === "articles") {
       filter.categorySlug = categorySlug;
@@ -201,6 +208,18 @@ export class CmsService {
     const resource = this.resource(resourceName);
     const parsed = resource.schema.partial().parse(body);
     const payload = withSlug(parsed);
+
+    if (resourceName === "settings") {
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(id);
+      const filter = isObjectId ? { _id: id } : { key: id };
+      const updated = await resource.model.findOneAndUpdate(
+        filter,
+        { $set: payload },
+        { new: true, upsert: true, runValidators: true }
+      ).lean();
+      return updated;
+    }
+
     const updated = await new BaseRepository(resource.model).update(id, payload);
     if (!updated) throw new ApiError(404, "Resource not found");
     return updated;
