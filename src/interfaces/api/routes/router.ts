@@ -116,13 +116,15 @@ ${allUrls
   }
 
   if (req.method === "GET" && resource !== "download") {
-    const browserCache = resource === "navigation" ? 300 : 60;
-    const edgeCache = resource === "navigation" ? 600 : 300;
+    const browserCache = resource === "navigation" ? 0 : 60;
+    const edgeCache = resource === "navigation" ? 0 : 300;
     res.setHeader(
       "Cache-Control",
-      `public, max-age=${browserCache}, s-maxage=${edgeCache}, stale-while-revalidate=86400`
+      resource === "navigation"
+        ? "no-cache, no-store, must-revalidate"
+        : `public, max-age=${browserCache}, s-maxage=${edgeCache}, stale-while-revalidate=86400`
     );
-    res.setHeader("CDN-Cache-Control", `public, s-maxage=${edgeCache}, stale-while-revalidate=86400`);
+    res.setHeader("CDN-Cache-Control", resource === "navigation" ? "no-cache" : `public, s-maxage=${edgeCache}, stale-while-revalidate=86400`);
   }
 
   if (resource === "download" && req.method === "GET") {
